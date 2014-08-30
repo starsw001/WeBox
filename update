@@ -11,9 +11,7 @@ chmod -R 0755 /srv/service
 chmod -R 0755 /srv/webox/bin
 chmod -R 0777 /srv/webroot/default
 
-/srv/service stop
-
-rm -rf /srv/webox/ready
+rm -rf /srv/*.md /srv/webox/ready
 
 find /srv -type f -name "*.log" -exec rm {} \;
 find /srv -type f -name "*.pid" -exec rm {} \;
