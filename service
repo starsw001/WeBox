@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+
+export PATH=/srv/webox/bin:$PATH
+
+wkit service php5  "${@}"
+wkit service mysql "${@}"
+wkit service nginx "${@}"
+

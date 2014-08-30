@@ -1,0 +1,55 @@
+
+app_name=${1##*[/.]}
+app_file=${wkroot}/service/${app_name}
+
+app_does='stop start reload restart'
+app_todo=${2:-help}
+
+app_help() {
+
+	local name=${app_name:-help}
+	local does=$(echo ${app_does})
+
+	echo "Usage: service ${name} ${does// /|}" >&2
+	exit 3
+
+}
+
+app_once() {
+
+	return 0
+
+}
+
+app_init() {
+
+	return 0
+
+}
+
+app_stop() {
+
+	return 1
+
+}
+
+app_start() {
+
+	return 1
+
+}
+
+app_reload() {
+
+	return 1
+
+}
+
+app_restart() {
+
+	trap '' TERM
+
+	app_stop "${@}"
+	app_start "${@}"
+
+}

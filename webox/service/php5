@@ -1,0 +1,34 @@
+
+app_once() {
+
+	chown -R _www:_www /srv/php5/var/*
+
+}
+
+app_init() {
+
+	local poolvar poolconfig
+
+	for poolconfig in /srv/php5/etc/fpm.d/*.inc; do
+
+		poolvar=${poolconfig##*/}
+		poolvar=/srv/webroot/${poolvar/.inc/}/var
+
+		mkdir -p $poolvar/upload $poolvar/session
+		chown -R _www:_www $poolvar
+
+	done
+
+}
+
+app_stop() {
+
+	killall php-fpm
+
+}
+
+app_start() {
+
+	/srv/php5/sbin/php-fpm
+
+}

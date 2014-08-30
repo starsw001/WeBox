@@ -1,0 +1,34 @@
+
+app_once() {
+
+	chown -R _www:_www /srv/nginx/var/*
+	chown -R _www:_www /srv/webroot/default
+
+}
+
+app_init() {
+
+	if [ ! -d /srv/nginx/var/tmp/proxy_cache ]; then
+		mkdir -p /srv/nginx/var/tmp/proxy_cache
+		chown -R _www:_www /srv/nginx/var/tmp/proxy_cache
+	fi
+
+}
+
+app_stop() {
+
+	/srv/nginx/sbin/nginx -s stop
+
+}
+
+app_start() {
+
+	/srv/nginx/sbin/nginx
+
+}
+
+app_reload() {
+
+	/srv/nginx/sbin/nginx -s reload
+
+}

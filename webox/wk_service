@@ -1,0 +1,195 @@
+
+wk_service() {
+
+	. ${wkroot}/wk_service_define "${@}"
+
+	[ -f ${app_file} ] || {
+		wk_error "Aborted: ${app_name} not found"
+	}
+
+	shift 2
+
+	. ${app_file}
+	wk_service_todo "${@}"
+
+}
+
+wk_service_todo() {
+
+	local does=" ${app_does} "
+	[ "${does}" = "${does/ ${app_todo} / }" ] && {
+		app_todo=help
+	}
+
+	[ "${app_todo}" = "start" ] && {
+		wk_ready ${app_name} || {
+			app_once &&
+				wk_ready ${app_name} true
+		}
+		app_init "${@}"
+	}
+
+	echo "${app_todo} ${app_name} ..."
+
+	app_${app_todo} "${@}"
+	wk_error_check "Aborted: ${app_todo} ${app_name}"
+
+}
+
+wk_service_usage() {
+
+	echo "service          manage service for ${wkroot}/service/*"
+	echo "service_setup    setup ${wkroot}/service/* to /etc/init.d/*"
+	echo "service_remove   remove /etc/init.d/* for ${wkroot}/service/*"
+
+}
+
+wk_service_setup() {
+
+	for wkfile in ${wkroot}/service/*; do
+
+		local initd=/etc/init.d/${wkfile##*/}
+
+		echo "setup ${initd}"
+		echo "#!/bin/wkit service" > ${initd}
+
+		chmod 0755 ${initd}
+
+	done
+
+}
+
+wk_service_remove() {
+
+	for wkfile in ${wkroot}/service/*; do
+
+		local initd=/etc/init.d/${wkfile##*/}
+
+		echo "remove ${initd}"
+		rm -f ${initd}
+
+	done
+
+}
+
+#############################################################################
+# Daemon
+
+# wk_service_daemon:
+#   -C   check if EXEC is alive
+#   -S   start EXEC, passing it ARGS as its arguments
+#   -K   kill EXEC, sending it a TERM signal if not specified otherwise
+#
+# Environment variables exposed:
+#   SERVICE_BACKGROUND    run EXEC in background
+#   SERVICE_WRITE_PID    create a pid-file and use it for matching
+#   SERVICE_MATCH_EXEC   use EXEC command-line for matching (default)
+#   SERVICE_MATCH_NAME   use EXEC process name for matching
+#   SERVICE_USE_PID      assume EXEC create its own pid-file and use it for matching
+#   SERVICE_NAME         process name to use (default to EXEC file part)
+#   SERVICE_PID_FILE     pid file to use (default to /var/run/${SERVICE_NAME}.pid)
+#   SERVICE_SIG          signal to send when using -K
+#   SERVICE_SIG_RELOAD   default signal used when reloading
+#   SERVICE_SIG_STOP     default signal used when stopping
+#   SERVICE_STOP_TIME    time to wait for a process to stop gracefully before killing it
+#   SERVICE_UID          user EXEC should be run as
+#   SERVICE_GID          group EXEC should be run as
+#
+#   SERVICE_QUIET        don't print anything
+#
+
+SERVICE_QUIET=1
+SERVICE_STOP_TIME=5
+SERVICE_MATCH_EXEC=1
+SERVICE_SIG_STOP='TERM'
+SERVICE_SIG_RELOAD='HUP'
+
+wk_service_daemon() {
+
+	local exec name start daemon
+
+	daemon="start-stop-daemon${SERVICE_QUIET:+ -q}"
+	case "${1}" in
+		-C)
+			daemon="${daemon} -K -t"
+		;;
+		-K)
+			daemon="${daemon} -K${SERVICE_SIG:+ -s ${SERVICE_SIG}}"
+		;;
+		-S)
+			daemon="${daemon} -S${SERVICE_BACKGROUND:+ -b}${SERVICE_WRITE_PID:+ -m}"
+			start=1
+		;;
+		*)
+			echo "service: unknown action '${1}'" 1>&2
+			return 1
+		;;
+	esac
+
+	exec="${2}"
+	[ -n "${exec}" ] || {
+		echo "service: missing argument" 1>&2
+		return 1
+	}
+	[ -x "${exec}" ] || {
+		echo "service: '${exec}' is not executable" 1>&2
+		return 1
+	}
+
+	name="${SERVICE_NAME:-${exec##*/}}"
+
+	[ -z "${SERVICE_MATCH_NAME}" ] || daemon="${daemon} -n ${name}"
+	[ -z "${SERVICE_MATCH_EXEC}${start}" ] || daemon="${daemon} -x ${exec}"
+	[ -z "${SERVICE_USE_PID}${SERVICE_WRITE_PID}${SERVICE_PID_FILE}" ] || daemon="${daemon} -p ${SERVICE_PID_FILE:-/var/run/${name}.pid}"
+	daemon="${daemon}${SERVICE_UID:+ -c ${SERVICE_UID}${SERVICE_GID:+:${SERVICE_GID}}}"
+
+	shift 2
+	${daemon} ${1:+ -- "${@}"}
+
+}
+
+wk_service_stop() {
+
+	local try
+
+	SERVICE_SIG="${SERVICE_SIG:-${SERVICE_SIG_STOP}}"
+	wk_service_daemon -K "${@}" || return 1
+
+	while [ $((try++)) -lt ${SERVICE_STOP_TIME} ]; do
+		wk_service_daemon -C "${@}" || return 0
+		sleep 1
+	done
+
+	SERVICE_SIG="KILL"
+	wk_service_daemon -K "${@}"
+
+	sleep 1
+	! wk_service_daemon -C "${@}"
+
+}
+
+wk_service_start() {
+
+	wk_service_daemon -S "${@}"
+
+}
+
+wk_service_reload() {
+
+	SERVICE_SIG="${SERVICE_SIG:-${SERVICE_SIG_RELOAD}}"
+	wk_service_daemon -K "${@}"
+
+}
+
+wk_service_signal() {
+
+	SERVICE_SIG="${SERVICE_SIG:-USR1}"
+	wk_service_daemon -K "${@}"
+
+}
+
+wk_service_check() {
+
+	wk_service_daemon -C "${@}"
+
+}
