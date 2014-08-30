@@ -1,7 +1,9 @@
 
 app_once() {
 
+	mkdir -p /srv/nginx/var/run /srv/nginx/var/log /srv/nginx/var/tmp
 	chown -R _www:_www /srv/nginx/var/*
+
 	chown -R _www:_www /srv/webroot/default
 
 }
